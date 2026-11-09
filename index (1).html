@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>블랙잭</title>
+<style>
+  :root {
+    --bg: #101a18;
+    --felt: #14543f;
+    --felt-dark: #0d3d2e;
+    --gold: #e8c878;
+    --cream: #f7f2e8;
+    --muted: #b8c8c0;
+    --red: #c83d43;
+    --ink: #17211e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--cream);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(ellipse at top, #263b33 0%, var(--bg) 68%);
+  }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  .app { width: min(1100px, 100% - 28px); margin: 0 auto; padding: 24px 0 36px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+  h1 { margin:0; font-size: clamp(26px, 5vw, 38px); letter-spacing:.08em; color:var(--gold); }
+  .subtitle { color:var(--muted); font-size:13px; margin-top:4px; }
+  .pill { border:1px solid #547166; color:#d6e5dc; border-radius:999px; padding:7px 12px; font-size:12px; white-space:nowrap; }
+  .table {
+    position:relative; overflow:hidden; border:8px solid #65452d; border-radius:28px;
+    background: radial-gradient(ellipse at center, #1b7052 0%, var(--felt) 58%, var(--felt-dark) 100%);
+    box-shadow: 0 18px 55px #0008, inset 0 0 0 2px #d0a45c55;
+    padding: 24px clamp(14px, 4vw, 38px) 28px;
+  }
+  .table:before { content:""; position:absolute; inset:12px; border:1px solid #d7c18a55; border-radius:20px; pointer-events:none; }
+  .zone { position:relative; z-index:1; min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; }
+  .zone.player { min-height:205px; }
+  .zone-title { color:#e8dfc4; font-size:13px; letter-spacing:.16em; text-transform:uppercase; margin:2px 0 10px; }
+  .score { min-height:24px; font-weight:700; color:#fff4d6; margin-bottom:10px; }
+  .cards { min-height:116px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .card {
+    width:72px; height:104px; border-radius:9px; background:#fffdf7; color:#17211e;
+    box-shadow:0 5px 12px #001b14aa; border:1px solid #ddd5c8; position:relative;
+    display:flex; align-items:center; justify-content:center; font-weight:800;
+    animation: deal .24s ease-out both;
+  }
+  .card .corner { position:absolute; top:5px; left:7px; display:flex; flex-direction:column; font-size:14px; line-height:1.05; }
+  .card .corner.bottom { top:auto; left:auto; right:7px; bottom:5px; transform:rotate(180deg); }
+  .card .suit { font-size:30px; }
+  .card.red { color:var(--red); }
+  .card.back {
+    color:#fff; border:3px solid #f5e8c6;
+    background: repeating-linear-gradient(45deg, #173c68 0 5px, #214d7c 5px 10px);
+  }
+  .card.back:after { content:"♠"; font-size:38px; color:#f3e5c5; text-shadow:0 1px 2px #000; }
+  @keyframes deal { from { opacity:0; transform:translateY(-16px) scale(.94); } to {opacity:1;transform:none;} }
+  .divider { height:1px; background:#e4d4a044; margin:10px 0 16px; position:relative; z-index:1; }
+  .status { position:relative; z-index:1; text-align:center; min-height:28px; color:#fff1c9; font-weight:700; font-size:17px; margin:8px 0 14px; }
+  .dashboard { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin:16px 0; }
+  .stat { background:#1b2925; border:1px solid #40564d; border-radius:14px; padding:13px 15px; }
+  .stat-label { color:#aebfb6; font-size:12px; margin-bottom:5px; }
+  .stat-value { color:var(--gold); font-size:22px; font-weight:800; }
+  .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:18px 0; }
+  .btn {
+    border:0; border-radius:10px; padding:12px 22px; min-width:118px; font-weight:800;
+    transition:transform .12s, filter .12s, opacity .12s;
+  }
+  .btn:hover:not(:disabled) { transform:translateY(-2px); filter:brightness(1.08); }
+  .btn:disabled { opacity:.38; cursor:not-allowed; }
+  .primary { background:var(--gold); color:#2b2517; }
+  .secondary { background:#e9eee9; color:#20332b; }
+  .danger { background:#b94747; color:white; }
+  .setup, .bet-panel, .help {
+    background:#1b2925; border:1px solid #40564d; border-radius:16px; padding:16px;
+  }
+  .setup { display:flex; align-items:end; justify-content:center; gap:12px; flex-wrap:wrap; margin:16px 0; }
+  label { display:block; color:#bdcbc4; font-size:12px; margin-bottom:6px; }
+  input {
+    width:150px; padding:11px 12px; border-radius:9px; border:1px solid #60766b;
+    background:#0f1916; color:white; outline:none;
+  }
+  input:focus { border-color:var(--gold); }
+  input[type=number] { appearance:textfield; -moz-appearance:textfield; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+  .chip-input { display:flex; flex-direction:column; gap:7px; }
+  .adjustments { display:flex; flex-wrap:wrap; gap:5px; }
+  .adjust-btn {
+    border:1px solid #64796e; background:#263a32; color:#e9e1cc;
+    border-radius:7px; padding:6px 9px; font-size:12px; font-weight:700;
+  }
+  .adjust-btn:hover { background:#365346; }
+  .adjust-btn:active { transform:translateY(1px); }
+  .bet-panel { display:flex; justify-content:center; align-items:end; gap:12px; flex-wrap:wrap; }
+  .hint { text-align:center; color:#9fb2a8; font-size:12px; margin-top:12px; }
+  .help { margin-top:16px; color:#b8c8c0; font-size:13px; line-height:1.65; }
+  .help strong { color:#f0d998; }
+  .hidden { display:none !important; }
+  .modal {
+    position:fixed; inset:0; background:#000a; display:grid; place-items:center; padding:20px; z-index:10;
+  }
+  .modal-box { width:min(420px,100%); background:#1b2925; border:1px solid #65796e; border-radius:18px; padding:24px; text-align:center; box-shadow:0 20px 60px #0009; }
+  .modal-box h2 { color:var(--gold); margin:0 0 8px; }
+  .modal-box p { color:#c6d2cb; }
+  @media (max-width:600px) {
+    .app { width:calc(100% - 18px); padding-top:15px; }
+    .table { border-width:5px; border-radius:20px; padding:18px 8px; }
+    .zone { min-height:160px; } .zone.player { min-height:175px; }
+    .card { width:58px; height:86px; }
+    .card .suit { font-size:25px; }
+    .dashboard { gap:7px; }
+    .stat { padding:10px 8px; }
+    .stat-value { font-size:18px; }
+    .btn { min-width:calc(50% - 8px); padding:12px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div><h1>BLACKJACK</h1><div class="subtitle">딜러와 겨루는 21의 승부</div></div>
+    <div class="pill">52장 · 조커 없음 · 스플릿 없음</div>
+  </header>
+
+  <section id="setup" class="setup">
+    <div class="chip-input">
+      <div><label for="startingChips">시작 칩</label><input id="startingChips" type="number" min="1" max="1000000" step="1" value="1000"></div>
+      <div class="adjustments" aria-label="시작 칩 조절">
+        <button type="button" class="adjust-btn" data-target="startingChips" data-delta="100">+100</button>
+        <button type="button" class="adjust-btn" data-target="startingChips" data-delta="1000">+1,000</button>
+        <button type="button" class="adjust-btn" data-target="startingChips" data-delta="-100">−100</button>
+        <button type="button" class="adjust-btn" data-target="startingChips" data-delta="-1000">−1,000</button>
+      </div>
+    </div>
+    <button id="startBtn" class="btn primary">게임 시작</button>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="table">
+      <div class="zone dealer">
+        <div class="zone-title">딜러</div>
+        <div id="dealerScore" class="score">점수: ?</div>
+        <div id="dealerCards" class="cards"></div>
+      </div>
+      <div class="divider"></div>
+      <div id="status" class="status" aria-live="polite">베팅을 시작해 주세요.</div>
+      <div class="zone player">
+        <div class="zone-title">플레이어</div>
+        <div id="playerScore" class="score">점수: 0</div>
+        <div id="playerCards" class="cards"></div>
+      </div>
+    </div>
+
+    <div class="dashboard">
+      <div class="stat"><div class="stat-label">보유 칩</div><div id="chips" class="stat-value">1,000</div></div>
+      <div class="stat"><div class="stat-label">현재 베팅</div><div id="betDisplay" class="stat-value">0</div></div>
+      <div class="stat"><div class="stat-label">라운드</div><div id="roundDisplay" class="stat-value">0</div></div>
+    </div>
+
+    <div id="betPanel" class="bet-panel">
+      <div class="chip-input">
+        <div><label for="betInput">베팅할 칩</label><input id="betInput" type="number" min="1" step="1" value="0"></div>
+        <div class="adjustments" aria-label="베팅 칩 조절">
+          <button type="button" class="adjust-btn" data-target="betInput" data-delta="100">+100</button>
+          <button type="button" class="adjust-btn" data-target="betInput" data-delta="1000">+1,000</button>
+          <button type="button" class="adjust-btn" data-target="betInput" data-delta="-100">−100</button>
+          <button type="button" class="adjust-btn" data-target="betInput" data-delta="-1000">−1,000</button>
+        </div>
+      </div>
+      <button id="dealBtn" class="btn primary">카드 받기</button>
+    </div>
+
+    <div id="actionControls" class="controls hidden">
+      <button id="hitBtn" class="btn secondary">히트</button>
+      <button id="standBtn" class="btn primary">스탠드</button>
+      <button id="doubleBtn" class="btn danger">더블 다운</button>
+    </div>
+    <div id="nextControls" class="controls hidden">
+      <button id="nextBtn" class="btn primary">다음 라운드</button>
+    </div>
+    <div id="gameOverControls" class="controls hidden">
+      <button id="restartBtn" class="btn primary">새 게임 시작</button>
+    </div>
+    <div class="hint">딜러는 16 이하에서 히트하고, 17 이상에서 스탠드합니다. 소프트 17도 스탠드합니다.</div>
+  </section>
+
+  <section class="help">
+    <strong>게임 규칙</strong><br>
+    A는 1 또는 11점, J·Q·K는 10점입니다. 승리하면 베팅 금액을 포함해 총 2배를 돌려받고, 패배하면 베팅액을 잃습니다. 무승부는 베팅액을 돌려받습니다. 더블 다운은 베팅을 두 배로 늘리고 카드 한 장만 받은 뒤 자동으로 종료됩니다.
+  </section>
+</div>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <h2 id="modalTitle">게임 종료</h2>
+    <p id="modalText"></p>
+    <button id="modalBtn" class="btn primary">확인</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const SUITS = [
+    { symbol: "♠", name: "스페이드", red: false },
+    { symbol: "♥", name: "하트", red: true },
+    { symbol: "♦", name: "다이아몬드", red: true },
+    { symbol: "♣", name: "클로버", red: false }
+  ];
+  const RANKS = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+
+  const $ = id => document.getElementById(id);
+  const state = {
+    chips: 0, bet: 0, round: 0, deck: [], player: [], dealer: [],
+    phase: "setup", hiddenDealerCard: true, lastResult: ""
+  };
+
+  function createDeck() {
+    const deck = [];
+    for (const suit of SUITS) {
+      for (const rank of RANKS) {
+        deck.push({ suit: suit.symbol, suitName: suit.name, red: suit.red, rank });
+      }
+    }
+    // Fisher-Yates shuffle
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    return deck;
+  }
+
+  function drawCard() {
+    if (state.deck.length === 0) {
+      // 정상적인 한 라운드에서는 발생하지 않지만, 안전하게 새 덱을 준비한다.
+      state.deck = createDeck();
+    }
+    return state.deck.pop();
+  }
+
+  function cardValue(card) {
+    if (card.rank === "A") return 11;
+    if (["J","Q","K"].includes(card.rank)) return 10;
+    return Number(card.rank);
+  }
+
+  function handValue(hand) {
+    let total = 0, aces = 0;
+    for (const card of hand) {
+      total += cardValue(card);
+      if (card.rank === "A") aces++;
+    }
+    while (total > 21 && aces > 0) {
+      total -= 10;
+      aces--;
+    }
+    return total;
+  }
+
+  function isSoft(hand) {
+    let total = 0, aces = 0;
+    for (const card of hand) {
+      total += cardValue(card);
+      if (card.rank === "A") aces++;
+    }
+    while (total > 21 && aces > 0) {
+      total -= 10;
+      aces--;
+    }
+    return aces > 0; // A를 11로 계산하고 있는 상태
+  }
+
+  function formatNumber(n) {
+    return Math.floor(n).toLocaleString("ko-KR");
+  }
+
+  function adjustChipInput(inputId, delta) {
+    const input = $(inputId);
+    const min = 1;
+    const max = inputId === "startingChips" ? 1000000 : Math.max(1, state.chips);
+    const current = Number(input.value);
+    const safeCurrent = Number.isFinite(current) ? current : min;
+    // 시작 칩은 최대 1,000,000, 베팅은 현재 보유 칩을 넘지 않도록 제한한다.
+    const next = Math.min(max, Math.max(min, safeCurrent + delta));
+    input.value = String(next);
+  }
+
+  function renderCard(card, faceDown = false) {
+    const el = document.createElement("div");
+    el.className = "card" + (faceDown ? " back" : card.red ? " red" : "");
+    if (!faceDown) {
+      const corner = document.createElement("div");
+      corner.className = "corner";
+      corner.innerHTML = `<span>${card.rank}</span><span>${card.suit}</span>`;
+      const suit = document.createElement("div");
+      suit.className = "suit";
+      suit.textContent = card.suit;
+      const bottom = document.createElement("div");
+      bottom.className = "corner bottom";
+      bottom.innerHTML = `<span>${card.rank}</span><span>${card.suit}</span>`;
+      el.append(corner, suit, bottom);
+    }
+    return el;
+  }
+
+  function renderHand(containerId, hand, hideHoleCard = false) {
+    const container = $(containerId);
+    container.replaceChildren();
+    hand.forEach((card, index) => container.appendChild(renderCard(card, hideHoleCard && index === 1)));
+  }
+
+  function render() {
+    $("chips").textContent = formatNumber(state.chips);
+    $("betDisplay").textContent = formatNumber(state.bet);
+    $("roundDisplay").textContent = state.round;
+    renderHand("playerCards", state.player);
+    renderHand("dealerCards", state.dealer, state.hiddenDealerCard);
+
+    $("playerScore").textContent = state.player.length ? `점수: ${handValue(state.player)}` : "점수: 0";
+    $("dealerScore").textContent = state.dealer.length
+      ? (state.hiddenDealerCard ? `점수: ${cardValue(state.dealer[0])} + ?` : `점수: ${handValue(state.dealer)}`)
+      : "점수: 0";
+
+    $("setup").classList.toggle("hidden", state.phase !== "setup");
+    $("game").classList.toggle("hidden", state.phase === "setup");
+    $("betPanel").classList.toggle("hidden", state.phase !== "betting");
+    $("actionControls").classList.toggle("hidden", state.phase !== "player");
+    $("nextControls").classList.toggle("hidden", state.phase !== "roundOver");
+    $("gameOverControls").classList.toggle("hidden", state.phase !== "gameOver");
+
+    $("hitBtn").disabled = state.phase !== "player";
+    $("standBtn").disabled = state.phase !== "player";
+    $("doubleBtn").disabled = state.phase !== "player" || state.chips < state.bet;
+    $("status").textContent = state.lastResult || (state.phase === "betting" ? "베팅을 시작해 주세요." : "행동을 선택해 주세요.");
+  }
+
+  function startGame() {
+    const amount = Number($("startingChips").value);
+    if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000) {
+      showModal("잘못된 칩 수", "시작 칩은 1부터 1,000,000 사이의 정수로 입력해 주세요.");
+      return;
+    }
+    state.chips = amount;
+    state.bet = 0;
+    state.round = 0;
+    state.deck = [];
+    state.player = [];
+    state.dealer = [];
+    state.hiddenDealerCard = true;
+    state.lastResult = "";
+    state.phase = "betting";
+    $("betInput").value = 0;
+    render();
+  }
+
+  function beginRound() {
+    const bet = Number($("betInput").value);
+    if (!Number.isSafeInteger(bet) || bet < 1 || bet > state.chips) {
+      showModal("베팅 금액 확인", "보유 칩 범위 안에서 1 이상의 정수를 베팅해 주세요.");
+      return;
+    }
+    state.bet = bet;
+    state.chips -= bet;
+    state.round++;
+    state.deck = createDeck();
+    state.player = [drawCard(), drawCard()];
+    state.dealer = [drawCard(), drawCard()];
+    state.hiddenDealerCard = true;
+    state.lastResult = "";
+    state.phase = "player";
+
+    // 초기 2장으로 21이면 플레이어의 선택 없이 라운드를 종료한다.
+    if (handValue(state.player) === 21) {
+      state.lastResult = "블랙잭! 딜러 차례를 확인합니다.";
+      finishPlayerTurn();
+    } else {
+      render();
+    }
+  }
+
+  function hit() {
+    if (state.phase !== "player") return;
+    state.player.push(drawCard());
+    if (handValue(state.player) > 21) {
+      state.hiddenDealerCard = false;
+      settle("loss", "버스트! 21을 초과했습니다. 패배했습니다.");
+    } else {
+      render();
+    }
+  }
+
+  function stand() {
+    if (state.phase !== "player") return;
+    finishPlayerTurn();
+  }
+
+  function doubleDown() {
+    if (state.phase !== "player" || state.chips < state.bet) return;
+    state.chips -= state.bet;
+    state.bet *= 2;
+    state.player.push(drawCard());
+    if (handValue(state.player) > 21) {
+      state.hiddenDealerCard = false;
+      settle("loss", "더블 다운 후 버스트! 베팅한 칩을 모두 잃었습니다.");
+      return;
+    }
+    finishPlayerTurn();
+  }
+
+  function finishPlayerTurn() {
+    state.hiddenDealerCard = false;
+    render();
+    // 딜러는 16 이하 히트, 17 이상 스탠드. 소프트 17도 스탠드.
+    while (handValue(state.dealer) < 17) {
+      state.dealer.push(drawCard());
+    }
+    const playerScore = handValue(state.player);
+    const dealerScore = handValue(state.dealer);
+
+    if (dealerScore > 21) {
+      settle("win", "딜러 버스트! 승리했습니다.");
+    } else if (playerScore > dealerScore) {
+      settle("win", "승리했습니다!");
+    } else if (playerScore < dealerScore) {
+      settle("loss", "패배했습니다.");
+    } else {
+      settle("push", "무승부입니다. 베팅 금액을 돌려받습니다.");
+    }
+  }
+
+  function settle(result, message) {
+    state.hiddenDealerCard = false;
+    if (result === "win") state.chips += state.bet * 2;
+    if (result === "push") state.chips += state.bet;
+    state.lastResult = message;
+    state.phase = state.chips <= 0 ? "gameOver" : "roundOver";
+    render();
+    if (state.phase === "gameOver") {
+      showModal("게임 오버", "보유 칩이 모두 소진되었습니다. 새 게임을 시작할 수 있습니다.");
+    }
+  }
+
+  function nextRound() {
+    if (state.phase !== "roundOver") return;
+    state.bet = 0;
+    state.player = [];
+    state.dealer = [];
+    state.hiddenDealerCard = true;
+    state.lastResult = "";
+    state.phase = "betting";
+    $("betInput").value = 0;
+    render();
+  }
+
+  function showModal(title, message) {
+    $("modalTitle").textContent = title;
+    $("modalText").textContent = message;
+    $("modal").classList.remove("hidden");
+  }
+  function closeModal() { $("modal").classList.add("hidden"); }
+
+  document.querySelectorAll(".adjust-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      adjustChipInput(button.dataset.target, Number(button.dataset.delta));
+    });
+  });
+
+  $("startBtn").addEventListener("click", startGame);
+  $("dealBtn").addEventListener("click", beginRound);
+  $("hitBtn").addEventListener("click", hit);
+  $("standBtn").addEventListener("click", stand);
+  $("doubleBtn").addEventListener("click", doubleDown);
+  $("nextBtn").addEventListener("click", nextRound);
+  $("restartBtn").addEventListener("click", () => { closeModal(); state.phase = "setup"; render(); });
+  $("modalBtn").addEventListener("click", closeModal);
+  $("modal").addEventListener("click", e => { if (e.target === $("modal")) closeModal(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
